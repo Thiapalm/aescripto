@@ -18,6 +18,17 @@ const char version[] = "V1.0.0";
 // ENUM & STRUCT & TYPEDEFS
 typedef void (*actionptr)(aes256_context *, uint8_t *);
 
+char * output[] = {
+		"%02x",
+		"%c"
+};
+
+enum output_type
+{
+	HEX = 0,
+	CHAR
+};
+
 typedef enum action_t
 {
   ENCRYPT = 0,
@@ -132,47 +143,114 @@ uint8_t tohex(char *value, int i)
     return result;
 }
 
+uint8_t * hex (input_data_t data, action_t action, uint8_t * array, uint8_t array_size)
+{
+
+	int i = 0;
+	int k = 0;
+	while (i != array_size)
+	{
+
+			array[k] = (tohex(data.aes_message, i) << 4);
+			i++;
+			array[k] += tohex(data.aes_message, i);
+			i++;
+			k++;
+	}
+
+	return &array[0];
+}
+
+uint8_t * text (input_data_t data, action_t action, uint8_t * array, uint8_t array_size)
+{
+
+    if (action == DECRYPT)
+    {
+		int i = 0;
+		int k = 0;
+		while (i != array_size)
+		{
+			array[k] = (tohex(data.aes_message, i) << 4);
+			i++;
+			array[k] += tohex(data.aes_message, i);
+			i++;
+			k++;
+		}
+
+
+    } else if (action == ENCRYPT)
+    {
+
+		int ind = 0;
+		for(ind = 0; ind < array_size / 2; ind++){
+			sprintf((char*)array + ind*2, "%02X", data.aes_message[ind]);
+		}
+
+    }
+
+    printf("%s\n", array);
+
+    return &array[0];
+}
+
 void my_action (input_data_t data, action_t action)
 {
     aes256_context ctx;
+    aes256_init(&ctx, data.aes_key);
+
     uint8_t * valuep;
+    char * outputp;
     uint8_t value[16];
     int this_size = 0;
 
     int size = strlen(data.aes_message);
-    aes256_init(&ctx, data.aes_key);
+
+	int outsize = size * 2;
+	uint8_t outvalue[outsize];
+
 
     if (data.type_of_message == MESSAGE_HEX)
     {
-		int i = 0;
-		int k = 0;
-		while (i != size)
-		{
+    	valuep = &value[0];
+    	hex(data, action, valuep, size);
+    	this_size = size / 2;
+    	outputp = output[HEX];
 
-				value[k] = (tohex(data.aes_message, i) << 4);
-				i++;
-				value[k] += tohex(data.aes_message, i);
-				i++;
-				k++;
-		}
-		valuep = &value[0];
-
-		aes_operation[action](&ctx, valuep);
-
-		this_size = size / 2;
-    } else
+    } else if (data.type_of_message == MESSAGE_TEXT)
     {
-      valuep = (uint8_t*)data.aes_message;
 
-      aes_operation[action](&ctx, valuep);
+    	if (action == DECRYPT)
+        {
+        	valuep = &outvalue[0];
+        	hex(data, action, valuep, outsize);
+        	this_size = outsize / 2;
+        	outputp = output[HEX];
 
-      this_size = size;
+
+        	int i = 0;
+            while (i != this_size / 2)
+            {
+            	fprintf(stdout, outputp, valuep[i]);
+                i++;
+            }
+
+        } else if (action == ENCRYPT)
+        {
+        	valuep = &outvalue[0];
+        	text(data, action, valuep, outsize);
+        	this_size = size;
+        	outputp = output[HEX];
+        }
     }
+
+    aes_operation[action](&ctx, valuep);
+
+    printf("\nRESULT:\n");
 
 	int i = 0;
     while (i != this_size)
     {
-    	fprintf(stdout, "%02x", valuep[i]);
+    	fprintf(stdout, outputp, valuep[i]);
         i++;
     }
 
