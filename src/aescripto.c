@@ -245,9 +245,7 @@ void my_action (input_data_t data, action_t action)
 
     aes_operation[action](&ctx, valuep);
 
-    printf("\nRESULT:\n");
-
-	int i = 0;
+    int i = 0;
     while (i != this_size)
     {
     	fprintf(stdout, outputp, valuep[i]);
@@ -255,6 +253,24 @@ void my_action (input_data_t data, action_t action)
     }
 
     my_exit(X_SUCCESS);
+}
+
+
+char * pad_with_zeroes(char * array, uint8_t size)
+{
+	static char result[32];
+
+	int index = 31;
+
+	while(index--)
+	{
+		result[index] = '0';
+		if (index <= size)
+		{
+			result[index] = array[size--];
+		}
+	}
+	return result;
 }
 
 int main(int argc, char *argv[])
@@ -282,6 +298,9 @@ int main(int argc, char *argv[])
           if (strlen(optarg) == 32)
           {
             data.aes_key = (uint8_t*)optarg;
+          } else if (strlen(optarg) < 32)
+          {
+        	  data.aes_key = (uint8_t*)pad_with_zeroes(optarg, strlen(optarg));
           } else
           {
             my_exit(X_WRONGKEY);
